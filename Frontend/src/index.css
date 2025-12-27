@@ -1,75 +1,121 @@
 @import "tailwindcss";
+/* @plugin "daisyui"; */
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@theme {
+  --color-border: 214.3 31.8% 91.4%;
+  --color-input: 214.3 31.8% 91.4%;
+  --color-ring: 222.2 84% 4.9%;
+  --color-background: 0 0% 100%;
+  --color-foreground: 222.2 84% 4.9%;
+  --color-primary: 222.2 47.4% 11.2%;
+  --color-primary-foreground: 210 40% 98%;
+  --color-secondary: 210 40% 96.1%;
+  --color-secondary-foreground: 222.2 47.4% 11.2%;
+  --color-muted: 210 40% 96.1%;
+  --color-muted-foreground: 215.4 16.3% 46.9%;
+  --color-accent: 210 40% 96.1%;
+  --color-accent-foreground: 222.2 47.4% 11.2%;
+  --color-card: 0 0% 100%;
+  --color-card-foreground: 222.2 84% 4.9%;
+  --color-border-ring: 222.2 84% 4.9%;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-
-button:hover {
-  border-color: #646cff;
-}
-
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* border-[hsl(var(--color-border))]  */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--color-ring))];
+    @apply disabled:pointer-events-none disabled:opacity-50;
   }
 
-  a:hover {
-    color: #747bff;
+  .btn-primary {
+    @apply bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))];
+    @apply hover:bg-[hsl(var(--color-primary))]/90 h-10 px-4 py-2;
   }
 
-  button {
-    background-color: #f9f9f9;
+  .btn-secondary {
+    @apply bg-[hsl(var(--color-secondary))] text-[hsl(var(--color-secondary-foreground))];
+    @apply hover:bg-[hsl(var(--color-secondary))]/80 h-10 px-4 py-2;
   }
+
+  .btn-outline {
+    @apply border border-[hsl(var(--color-input))] bg-[hsl(var(--color-background))];
+    @apply hover:bg-[hsl(var(--color-accent))] hover:text-[hsl(var(--color-accent-foreground))];
+    @apply h-10 px-4 py-2;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-[hsl(var(--color-accent))] hover:text-[hsl(var(--color-accent-foreground))];
+    @apply h-10 px-4 py-2;
+  }
+
+  .card {
+    @apply rounded-lg border border-[hsl(var(--color-border))];
+    @apply bg-[hsl(var(--color-card))] text-[hsl(var(--color-card-foreground))] shadow-sm;
+  }
+
+  .input {
+    @apply flex h-10 w-full rounded-md border border-[hsl(var(--color-input))];
+    @apply bg-[hsl(var(--color-background))] px-3 py-2 text-sm;
+    @apply placeholder:text-[hsl(var(--color-muted-foreground))];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--color-ring))];
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .label {
+    @apply text-sm font-medium leading-none;
+    @apply peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full border border-transparent;
+    @apply px-2.5 py-0.5 text-xs font-semibold transition-colors;
+    @apply focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-ring))];
+  }
+
+  .badge-default {
+    @apply bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))];
+    @apply hover:bg-[hsl(var(--color-primary))]/80;
+  }
+
+  .badge-secondary {
+    @apply bg-[hsl(var(--color-secondary))] text-[hsl(var(--color-secondary-foreground))];
+    @apply hover:bg-[hsl(var(--color-secondary))]/80;
+  }
+
+  .badge-outline {
+    @apply border-[hsl(var(--color-border))] text-[hsl(var(--color-foreground))];
+  }
+
+  .primary-border {
+    @apply border-t border-[#e5e7eb];
+  }
+}
+
+.role-tab {
+  transition: all 0.2s ease;
+}
+
+.role-tab.active {
+  background: hsl(var(--color-primary));
+  color: hsl(var(--color-primary-foreground));
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.5rem;
+  min-width: 200px;
+  z-index: 50;
+}
+
+.dropdown-content.show {
+  display: block;
 }
