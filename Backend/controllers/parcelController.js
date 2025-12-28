@@ -124,16 +124,25 @@ exports.assignAgent = async (req, res) => {
 // AGENT: Update Status (Picked Up -> Delivered)
 exports.updateStatus = async (req, res) => {
     try {
-        const parcel = await Parcel.findByIdAndUpdate(
-            req.params.id,
-            { status: req.body.status, statusHistory: parcel.statusHistory || [] },
-            { new: true }
-        );
-        res.status(200).json({ status: 'success', data: parcel });
+        const { status } = req.body;
+
+        const parcel = await Parcel.findById(req.params.id);
+        if (!parcel) return res.status(404).json({ message: "Parcel not found" });
+
+        // only the assigned agent can update
+        if (!parcel.deliveryAgent || String(parcel.deliveryAgent) !== String(req.user._id)) {
+            return res.status(403).json({ message: "Not allowed to update this parcel" });
+        }
+
+        parcel.status = status;
+        await parcel.save();
+
+        res.status(200).json({ status: "success", data: parcel });
     } catch (err) {
-        res.status(400).json({ status: 'fail', message: err.message });
+        res.status(400).json({ status: "fail", message: err.message });
     }
 };
+
 // Get parcels for the logged-in Customer
 exports.getMyOrders = async (req, res) => {
     try {
@@ -146,10 +155,14 @@ exports.getMyOrders = async (req, res) => {
 // Get parcels assigned to the logged-in Agent
 exports.getMyTasks = async (req, res) => {
     try {
-        const parcels = await Parcel.find({ deliveryAgent: req.user._id });
-        res.status(200).json({ status: 'success', data: parcels });
+        const parcels = await Parcel.find({ deliveryAgent: req.user._id })
+            .populate({ path: "sender", select: "name phone" })
+            .populate({ path: "assignedBy", select: "name role" })
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({ status: "success", data: parcels });
     } catch (err) {
-        res.status(400).json({ status: 'fail', message: err.message });
+        res.status(400).json({ status: "fail", message: err.message });
     }
 };
 
