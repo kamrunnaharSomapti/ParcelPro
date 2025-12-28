@@ -32,6 +32,23 @@ router.post('/book', restrictTo('customer'), parcelController.createParcel);
  *     responses:
  *       200:
  *         description: Success
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: Number of items per page
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         description: Parcel status
+ *       - in: query
+ *         name: search
+ *         required: false
+ *         description: Search query
  */
 router.get('/all', restrictTo('admin'), parcelController.getAllParcels);
 
@@ -103,5 +120,20 @@ router.get('/my-orders', restrictTo('customer'), parcelController.getMyOrders);
  *         description: Success
  */
 router.get('/my-tasks', restrictTo('agent'), parcelController.getMyTasks);
+// admin dashboard
+/**
+ * @swagger
+ * /parcels/admin-metrics:
+ *   get:
+ *     summary: Get admin metrics (Admin only)
+ *     tags: [Parcels]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Success
+ */
+router.get('/admin-metrics', restrictTo('admin'), parcelController.getAdminMetrics);
+
 
 module.exports = router;

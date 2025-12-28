@@ -1,6 +1,23 @@
 const Parcel = require('../models/Parcel');
 const User = require('../models/User');
 
+function getRange(range) {
+    const now = new Date();
+
+    if (range === "week") {
+        const start = new Date(now);
+        start.setDate(now.getDate() - 7);
+        return { start, end: now };
+    }
+
+    if (range === "month") {
+        const start = new Date(now);
+        start.setMonth(now.getMonth() - 1);
+        return { start, end: now };
+    }
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { start, end: now };
+}
 // CUSTOMER: Book a parcel
 exports.createParcel = async (req, res) => {
     try {
@@ -17,10 +34,36 @@ exports.createParcel = async (req, res) => {
 // ADMIN: Get all parcels & See Metrics
 exports.getAllParcels = async (req, res) => {
     try {
-        const parcels = await Parcel.find().populate('sender deliveryAgent', 'name phone');
-        res.status(200).json({ status: 'success', data: parcels });
+        const { page = 1, limit = 10, status, search } = req.query;
+
+        const filter = {};
+        if (status) filter.status = status;
+
+        if (search) {
+            filter.$or = [
+                { "pickupLocation.address": { $regex: search, $options: "i" } },
+                { "deliveryLocation.address": { $regex: search, $options: "i" } },
+                { status: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        const q = Parcel.find(filter)
+            .populate({ path: "sender", select: "name phone" })
+            .populate({ path: "deliveryAgent", select: "name phone" })
+            .populate({ path: "assignedBy", select: "name role" })
+            .sort({ createdAt: -1 })
+            .skip((Number(page) - 1) * Number(limit))
+            .limit(Number(limit));
+
+        const [data, total] = await Promise.all([q, Parcel.countDocuments(filter)]);
+
+        res.status(200).json({
+            status: "success",
+            data,
+            meta: { total, page: Number(page), limit: Number(limit) },
+        });
     } catch (err) {
-        res.status(400).json({ status: 'fail', message: err.message });
+        res.status(400).json({ status: "fail", message: err.message });
     }
 };
 
@@ -28,14 +71,53 @@ exports.getAllParcels = async (req, res) => {
 exports.assignAgent = async (req, res) => {
     try {
         const { agentId } = req.body;
-        const parcel = await Parcel.findByIdAndUpdate(
-            req.params.id,
-            { deliveryAgent: agentId, status: 'Assigned' },
-            { new: true }
-        );
-        res.status(200).json({ status: 'success', data: parcel });
+
+        if (!agentId) {
+            return res.status(400).json({ message: "agentId is required" });
+        }
+
+        // validate agent exists + role=agent
+        const agent = await User.findOne({ _id: agentId, role: "agent" }).select("_id name phone");
+        if (!agent) {
+            return res.status(400).json({ message: "Invalid agentId (not an agent)" });
+        }
+
+        const parcel = await Parcel.findById(req.params.id);
+        if (!parcel) {
+            return res.status(404).json({ message: "Parcel not found" });
+        }
+
+        // prevent assignment after delivery completed
+        if (["Delivered"].includes(parcel.status)) {
+            return res.status(400).json({ message: "Cannot assign a Delivered parcel" });
+        }
+
+        // save assignment info
+        parcel.deliveryAgent = agent._id;
+        parcel.assignedBy = req.user._id;
+        parcel.assignedAt = new Date();
+        parcel.status = "Assigned";
+
+        // optional history
+        parcel.statusHistory = parcel.statusHistory || [];
+        parcel.statusHistory.push({
+            status: "Assigned",
+            note: `Assigned to ${agent.name}`,
+            by: req.user._id,
+            at: new Date(),
+        });
+
+        await parcel.save();
+
+        // return populated
+        const populated = await Parcel.findById(parcel._id)
+            .populate({ path: "sender", select: "name phone" })
+            .populate({ path: "deliveryAgent", select: "name phone" })
+            .populate({ path: "assignedBy", select: "name role" });
+
+        res.status(200).json({ status: "success", data: populated });
     } catch (err) {
-        res.status(400).json({ status: 'fail', message: err.message });
+        res.status(400).json({ status: "fail", message: err.message });
     }
 };
 
@@ -44,7 +126,7 @@ exports.updateStatus = async (req, res) => {
     try {
         const parcel = await Parcel.findByIdAndUpdate(
             req.params.id,
-            { status: req.body.status },
+            { status: req.body.status, statusHistory: parcel.statusHistory || [] },
             { new: true }
         );
         res.status(200).json({ status: 'success', data: parcel });
@@ -68,5 +150,59 @@ exports.getMyTasks = async (req, res) => {
         res.status(200).json({ status: 'success', data: parcels });
     } catch (err) {
         res.status(400).json({ status: 'fail', message: err.message });
+    }
+};
+
+// admin dashboard metrics
+exports.getAdminMetrics = async (req, res) => {
+    try {
+        const range = (req.query.range || "today").toLowerCase();
+        const { start, end } = getRange(range);
+
+        // define "active deliveries" = not Delivered and not Failed
+        const activeStatuses = ["Assigned", "Picked Up", "In Transit"];
+
+        const [
+            dailyBookings,
+            failedDeliveries,
+            activeDeliveries,
+            activeAgents,
+            activeCustomers,
+            codAgg
+        ] = await Promise.all([
+            Parcel.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+            Parcel.countDocuments({ status: "Failed", updatedAt: { $gte: start, $lte: end } }),
+            Parcel.countDocuments({ status: { $in: activeStatuses } }),
+            User.countDocuments({ role: "agent" }),
+            User.countDocuments({ role: "customer" }),
+
+            // COD sum (if your schema uses paymentDetails.method + paymentDetails.amount)
+            Parcel.aggregate([
+                {
+                    $match: {
+                        createdAt: { $gte: start, $lte: end },
+                        "paymentDetails.method": "COD"
+                    }
+                },
+                { $group: { _id: null, totalCOD: { $sum: "$paymentDetails.amount" } } }
+            ])
+        ]);
+
+        const codAmount = codAgg?.[0]?.totalCOD || 0;
+
+        res.status(200).json({
+            status: "success",
+            data: {
+                range,
+                dailyBookings,
+                failedDeliveries,
+                codAmount,
+                activeDeliveries,
+                activeAgents,
+                activeCustomers
+            }
+        });
+    } catch (err) {
+        res.status(400).json({ status: "fail", message: err.message });
     }
 };

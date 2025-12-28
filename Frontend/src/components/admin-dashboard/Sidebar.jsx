@@ -1,12 +1,7 @@
 import { LayoutDashboard, Users, Truck, Package, CreditCard, Settings } from "lucide-react"
 const menuItems = [
     { icon: LayoutDashboard, label: "Admin Dashboard", active: true },
-    { icon: Users, label: "Customer Portal" },
-    { icon: Truck, label: "Delivery Agents" },
-    { icon: Package, label: "All Parcels" },
-    { icon: Users, label: "Customers" },
-    { icon: CreditCard, label: "Payments" },
-    { icon: Settings, label: "Settings" },
+
 ]
 export default function Sidebar() {
     return (

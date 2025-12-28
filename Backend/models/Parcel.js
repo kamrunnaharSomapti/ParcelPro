@@ -14,7 +14,17 @@ const parcelSchema = new mongoose.Schema({
     },
     deliveryAgent: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'User',
+        default: null
+    },
+    assignedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+    },
+    assignedAt: {
+        type: Date,
+        default: null,
     },
     parcelDetails: {
         weight: Number,
@@ -35,8 +45,20 @@ const parcelSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Delivered', 'Cancelled', 'Failed'],
-        default: 'Pending'
+        default: 'Pending',
     },
+    statusHistory: [
+        {
+            status: {
+                type: String,
+                enum: ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Delivered', 'Cancelled', 'Failed'],
+                required: true,
+            },
+            note: { type: String, default: "" },
+            by: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+            at: { type: Date, default: Date.now },
+        },
+    ],
     paymentDetails: {
         method: { type: String, enum: ['COD', 'PREPAID'], required: true },
         amount: { type: Number, required: true },

@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const authRoutes = require('./routes/authRoutes');
 const parcelRoutes = require('./routes/PercelRoutes');
+const userRoutes = require('./routes/userRoutes');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const path = require('path');
@@ -49,6 +50,8 @@ io.on("connection", (socket) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/parcels', parcelRoutes);
+app.use('/api/users', userRoutes);
+
 // db connection
 const DB = process.env.DB
 mongoose.connect(DB).then(() => {

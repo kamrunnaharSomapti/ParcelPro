@@ -1,103 +1,346 @@
-import { ChevronRight } from "lucide-react"
-
-const deliveries = [
-    {
-        id: "JCP-8204",
-        customer: "Sarah Johnson",
-        agent: "Mike Chan",
-        recipient: "Mike Chan",
-        status: "Delivered",
-        amount: "$245.00",
-    },
-    {
-        id: "JCP-8203",
-        customer: "David Martinez",
-        agent: "Alex Kumar",
-        recipient: "Alex Kumar",
-        status: "In Transit",
-        amount: "$189.50",
-    },
-    {
-        id: "JCP-8202",
-        customer: "Emma Wilson",
-        agent: "James Lee",
-        recipient: "James Lee",
-        status: "Pending",
-        amount: "$312.75",
-    },
-    {
-        id: "JCP-8201",
-        customer: "Robert Brown",
-        agent: "Mike Chan",
-        recipient: "Mike Chan",
-        status: "Failed",
-        amount: "$156.00",
-    },
-    {
-        id: "JCP-8200",
-        customer: "Lisa Anderson",
-        agent: "Alex Kumar",
-        recipient: "Alex Kumar",
-        status: "Delivered",
-        amount: "$428.25",
-    },
-]
+import { ChevronRight, X } from "lucide-react";
+import { useAxiosPrivate } from "../../api/useAxiosPrivate";
+import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const statusConfig = {
     Delivered: { bg: "bg-green-100", text: "text-green-800" },
     "In Transit": { bg: "bg-blue-100", text: "text-blue-800" },
+    Assigned: { bg: "bg-purple-100", text: "text-purple-800" },
+    "Picked Up": { bg: "bg-indigo-100", text: "text-indigo-800" },
     Pending: { bg: "bg-yellow-100", text: "text-yellow-800" },
     Failed: { bg: "bg-red-100", text: "text-red-800" },
-}
+};
 
 export default function DeliveriesTable() {
+    const axiosPrivate = useAxiosPrivate();
+
+    const [deliveries, setDeliveries] = useState([]);
+    const [meta, setMeta] = useState({ total: 0, page: 1, limit: 5 });
+    const [loading, setLoading] = useState(false);
+
+    // agents
+    const [agents, setAgents] = useState([]);
+    const [agentsLoading, setAgentsLoading] = useState(false);
+
+    // modal state
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedParcel, setSelectedParcel] = useState(null);
+    const [selectedAgentId, setSelectedAgentId] = useState("");
+    const [assigning, setAssigning] = useState(false);
+
+    const fetchParcels = async (page = meta.page) => {
+        try {
+            setLoading(true);
+            const res = await axiosPrivate.get("/parcels/all", {
+                params: { page, limit: meta.limit },
+            });
+            // console.log(res.data);
+
+            setDeliveries(res.data?.data || []);
+            setMeta((m) => ({ ...m, ...(res.data?.meta || {}), page }));
+        } catch (err) {
+            console.error("Bookings load failed:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchAgents = async () => {
+        try {
+            setAgentsLoading(true);
+            const res = await axiosPrivate.get("/users/agents");
+            setAgents(res.data?.data || []);
+        } catch (err) {
+            console.error("Agents load failed:", err);
+        } finally {
+            setAgentsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchParcels(1);
+    }, []);
+
+    const openAssignModal = async (parcel) => {
+        setSelectedParcel(parcel);
+        setSelectedAgentId("");
+        setIsModalOpen(true);
+
+
+        if (agents.length === 0) {
+            await fetchAgents();
+        }
+    };
+
+    const closeModal = () => {
+        if (assigning) return;
+        setIsModalOpen(false);
+        setSelectedParcel(null);
+        setSelectedAgentId("");
+    };
+
+    const handleAssign = async () => {
+        if (!selectedParcel?._id) return;
+        if (!selectedAgentId) {
+            alert("Please select an agent");
+            return;
+        }
+
+        try {
+            setAssigning(true);
+            await axiosPrivate.patch(`/parcels/assign/${selectedParcel._id}`, {
+                agentId: selectedAgentId,
+            });
+
+            closeModal();
+
+            await fetchParcels(meta.page);
+        } catch (err) {
+            alert(err?.response?.data?.message || "Failed to assign agent");
+            console.error("Assign failed:", err);
+        } finally {
+            setAssigning(false);
+        }
+    };
+    // export as pdf 
+    const handleExportPdf = (rows) => {
+        const doc = new jsPDF();
+
+        doc.setFontSize(14);
+        doc.text("Deliveries Report", 14, 15);
+
+        const tableBody = rows.map((p, idx) => [
+            idx + 1,
+            p.trackingId || String(p._id).slice(-6),
+            p.sender?.name || "—",
+            p.deliveryAgent?.name || "Unassigned",
+            p.status || "Pending",
+            String(p.paymentDetails?.amount ?? "—"),
+        ]);
+
+        autoTable(doc, {
+            startY: 22,
+            head: [["#", "Tracking ID", "Customer", "Agent", "Status", "Amount"]],
+            body: tableBody,
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [37, 99, 235] }, // blue header
+        });
+
+        doc.save("deliveries.pdf");
+    };
+    // export as excel
+    const handleExportExcel = () => {
+        const ws = XLSX.utils.json_to_sheet(deliveries);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Deliveries");
+        XLSX.writeFile(wb, "deliveries.xlsx");
+
+
+    }
+
+    const showingFrom = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+    const showingTo = Math.min(meta.page * meta.limit, meta.total);
+
     return (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            {/* TABLE HEADER */}
+
             <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-bold text-gray-900">Recent Deliveries</h2>
+                <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-gray-900">View all Bookings</h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => handleExportPdf(deliveries)} className="cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                            Export PDF
+                        </button>
+                        <button onClick={handleExportExcel} className="cursor-pointer px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                            Export Excel
+                        </button>
+                    </div>
+                </div>
+                {loading && <span className="text-sm text-gray-500">Loading...</span>}
+                {!loading && (
+                    <p className="text-sm text-gray-500">
+                        Showing {showingFrom} to {showingTo} of {meta.total} parcels
+                    </p>
+                )}
             </div>
 
-            {/* TABLE CONTENT */}
+
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Tracking ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Customer</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Agent</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Amount</th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                                Tracking ID
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                                Customer
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                                Agent
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                                Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                                Amount
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                                Action
+                            </th>
                         </tr>
                     </thead>
+
                     <tbody className="divide-y divide-gray-200">
-                        {deliveries.map((delivery) => (
-                            <tr key={delivery.id} className="hover:bg-gray-50 transition">
-                                <td className="px-6 py-4 text-sm font-semibold text-blue-600">{delivery.id}</td>
-                                <td className="px-6 py-4 text-sm text-gray-900">{delivery.customer}</td>
-                                <td className="px-6 py-4 text-sm text-gray-600">{delivery.agent}</td>
-                                <td className="px-6 py-4">
-                                    <span
-                                        className={`px-3 py-1 rounded-full text-xs font-medium ${statusConfig[delivery.status].bg
-                                            } ${statusConfig[delivery.status].text}`}
-                                    >
-                                        {delivery.status}
-                                    </span>
+                        {deliveries.map((p) => {
+                            const status = p.status || "Pending";
+                            const cfg = statusConfig[status] || statusConfig.Pending;
+                            const assigned = !!p.deliveryAgent?._id;
+                            const isAssigned = !!p.deliveryAgent?._id;
+                            const locked = ["Picked Up", "In Transit", "Delivered"].includes(p.status);
+
+                            return (
+                                <tr key={p._id} className="hover:bg-gray-50 transition">
+                                    <td className="px-6 py-4 text-sm font-semibold text-blue-600">
+                                        {String(p._id).slice(-6)}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                        {p.sender?.name || "—"}
+                                    </td>
+
+                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                        {p.deliveryAgent?.name ? (
+                                            <div>
+                                                <div className="text-gray-900 font-medium">{p.deliveryAgent.name}</div>
+                                                {p.assignedBy?.name && (
+                                                    <div className="text-xs text-gray-500">
+                                                        Assigned by {p.assignedBy.name}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            "Unassigned"
+                                        )}
+                                    </td>
+
+                                    <td className="px-6 py-4">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
+                                            {status}
+                                        </span>
+                                    </td>
+
+                                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                                        {p.paymentDetails?.amount ?? "—"}
+                                    </td>
+
+                                    <td className="px-6 py-4">
+                                        {!isAssigned && !locked ? (
+                                            <button
+                                                onClick={() => openAssignModal(p)}
+                                                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                            >
+                                                Assign
+                                            </button>
+                                        ) : (
+                                            <span className="text-sm text-gray-500">—</span>
+                                        )}
+                                    </td>
+
+                                </tr>
+                            );
+                        })}
+
+                        {!loading && deliveries.length === 0 && (
+                            <tr>
+                                <td className="px-6 py-6 text-sm text-gray-500" colSpan={6}>
+                                    No bookings found.
                                 </td>
-                                <td className="px-6 py-4 text-sm font-semibold text-gray-900">{delivery.amount}</td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            {/* TABLE FOOTER */}
+
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-                <p className="text-sm text-gray-600">Showing 5 of 47 deliveries</p>
-                <button className="flex items-center gap-2 px-4 py-2 text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition">
-                    View All <ChevronRight className="w-4 h-4" />
-                </button>
+                <p className="text-sm text-gray-600">
+                    {meta.total === 0 ? "Showing 0 results" : `Showing ${showingFrom}-${showingTo} of ${meta.total} bookings`}
+                </p>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        disabled={meta.page <= 1 || loading}
+                        onClick={() => fetchParcels(meta.page - 1)}
+                        className="px-4 py-2 rounded-lg border bg-white disabled:opacity-50"
+                    >
+                        Prev
+                    </button>
+
+                    <button
+                        disabled={meta.page * meta.limit >= meta.total || loading}
+                        onClick={() => fetchParcels(meta.page + 1)}
+                        className="flex items-center gap-2 px-4 py-2 text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition disabled:opacity-50"
+                    >
+                        Next <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
+
+
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200">
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <h3 className="text-lg font-semibold">Assign Agent</h3>
+                            <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            <div className="text-sm text-gray-600">
+                                Booking: <span className="font-semibold text-gray-900">{String(selectedParcel?._id).slice(-6)}</span>
+                            </div>
+
+                            <label className="text-sm font-medium text-gray-700">Select Agent</label>
+                            <select
+                                value={selectedAgentId}
+                                onChange={(e) => setSelectedAgentId(e.target.value)}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                disabled={agentsLoading || assigning}
+                            >
+                                <option value="">-- Select --</option>
+                                {agents.map((a) => (
+                                    <option key={a._id} value={a._id}>
+                                        {a.name} {a.phone ? `(${a.phone})` : ""}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {agentsLoading && <p className="text-sm text-gray-500">Loading agents...</p>}
+                        </div>
+
+                        <div className="p-4 border-t flex justify-end gap-2">
+                            <button
+                                onClick={closeModal}
+                                className="px-4 py-2 rounded-lg border bg-white"
+                                disabled={assigning}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAssign}
+                                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                                disabled={assigning || agentsLoading}
+                            >
+                                {assigning ? "Assigning..." : "Confirm Assign"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-    )
+    );
 }
