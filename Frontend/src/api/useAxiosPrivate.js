@@ -19,7 +19,7 @@ export function useAxiosPrivate() {
 
         const responseInterceptor = api.interceptors.response.use(
             (response) => response,
-            (error) => {// If token invalid/expired → log out for clean UX
+            (error) => {
                 const status = error?.response?.status;
                 if (status === 401) logout();
                 return Promise.reject(error);

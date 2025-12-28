@@ -34,18 +34,20 @@ export default function LoginForm() {
                 password: formData.password,
                 role: formData.role,
             });
-            console.log(res);
+            // console.log(res);
+            // redirect to role page
 
-            const token = res.token;
-            const user = res.user || res.data;
+
+            const token = res.token || res.data.token;
+            const user = res.user || res.data.user;
 
             if (!token || !user) {
                 throw new Error("Invalid login response: token/user missing");
             }
 
             setAuth({ token, user });
-
-            const path = ROLE_REDIRECT[user.role] || "/";
+            const role = user.role?.toLowerCase();
+            const path = ROLE_REDIRECT[role] || "/customer";
             navigate(path, { replace: true });
         } catch (err) {
             const msg =

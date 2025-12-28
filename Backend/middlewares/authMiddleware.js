@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// // PUBLIC ROUTE
+// app.get("/api", (req, res) => {
+//   res.json({ ok: true, message: "API is running" });
+// });
+
+
+
 exports.protect = async (req, res, next) => {
     try {
         let token;
@@ -35,3 +42,4 @@ exports.restrictTo = (...roles) => {
         next();
     };
 };
+

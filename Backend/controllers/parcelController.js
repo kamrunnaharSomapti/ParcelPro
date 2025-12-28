@@ -1,4 +1,4 @@
-const Parcel = require('../models/Percel');
+const Parcel = require('../models/Parcel');
 const User = require('../models/User');
 
 // CUSTOMER: Book a parcel
@@ -6,7 +6,7 @@ exports.createParcel = async (req, res) => {
     try {
         const newParcel = await Parcel.create({
             ...req.body,
-            sender: req.user._id // This ensures the parcel belongs to the logged-in user
+            sender: req.user._id
         });
         res.status(201).json({ status: 'success', data: newParcel });
     } catch (err) {
@@ -30,7 +30,7 @@ exports.assignAgent = async (req, res) => {
         const { agentId } = req.body;
         const parcel = await Parcel.findByIdAndUpdate(
             req.params.id,
-            { agent: agentId, status: 'Assigned' },
+            { deliveryAgent: agentId, status: 'Assigned' },
             { new: true }
         );
         res.status(200).json({ status: 'success', data: parcel });

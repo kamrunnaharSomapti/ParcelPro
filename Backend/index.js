@@ -7,14 +7,46 @@ const parcelRoutes = require('./routes/PercelRoutes');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const path = require('path');
-
-
+const http = require('http');
+const { Server } = require("socket.io");
 dotenv.config();
 const app = express();
-
-// middlewares
 app.use(cors());
 app.use(express.json());
+
+// socket io
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+    },
+});
+
+io.on("connection", (socket) => {
+    console.log("Socket connected:", socket.id);
+
+    socket.on("join_parcel", ({ parcelId }) => {
+        socket.join(`parcel:${parcelId}`);
+    });
+
+    socket.on("agent_location", ({ parcelId, lat, lng }) => {
+        io.to(`parcel:${parcelId}`).emit("location_update", {
+            parcelId,
+            lat,
+            lng,
+            updatedAt: new Date().toISOString(),
+        });
+    });
+
+    socket.on("disconnect", () => {
+        console.log("Socket disconnected:", socket.id);
+    });
+});
+
+
+// middlewares
+
 app.use('/api/auth', authRoutes);
 app.use('/api/parcels', parcelRoutes);
 // db connection
@@ -53,6 +85,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // server
 const PORT = process.env.PORT
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`)
 })

@@ -31,19 +31,26 @@ const parcelSchema = new mongoose.Schema({
         lat: Number,
         lng: Number
     },
+
     status: {
         type: String,
         enum: ['Pending', 'Assigned', 'Picked Up', 'In Transit', 'Delivered', 'Cancelled', 'Failed'],
         default: 'Pending'
     },
     paymentDetails: {
-        method: { type: String, enum: ['COD', 'Prepaid'], required: true },
+        method: { type: String, enum: ['COD', 'PREPAID'], required: true },
         amount: { type: Number, required: true },
         isPaid: { type: Boolean, default: false }
     },
     qrCode: {
         type: String
-    }
+    },
+    currentLocation: {
+        lat: Number,
+        lng: Number,
+        updatedAt: Date
+    },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Parcel', parcelSchema);
