@@ -8,10 +8,10 @@ import Unauthorized from "../pages/common/Unauthorized";
 import RequiredAuth from "../routes/RequiredAuth";
 import RegisterPage from "../pages/auth/RegisterPage";
 import BookParcelPage from "../pages/customer/BookParcelPage";
-import CustomerDashboard from "../pages/customer/CustomerDashboard";
+import CustomerPage from "../pages/customer/CustomerPage";
 
 export const router = createBrowserRouter([
-    { path: "/", element: <Login /> },
+    { path: "/", element: <CustomerPage /> },
     { path: "/login", element: <Login /> },
     { path: "/register", element: <RegisterPage /> },
     { path: "/unauthorized", element: <Unauthorized /> },
@@ -29,7 +29,7 @@ export const router = createBrowserRouter([
             },
             {
                 element: <RequireRole allowed={["customer"]} />,
-                children: [{ path: "/customer", element: <CustomerDashboard /> }, { path: "/customer/book", element: <BookParcelPage /> }],
+                children: [{ path: "/customer", element: <CustomerPage /> }, { path: "/customer/book", element: <BookParcelPage /> }],
             },
         ],
     },
