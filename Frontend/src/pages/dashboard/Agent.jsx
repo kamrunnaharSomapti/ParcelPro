@@ -1,9 +1,5 @@
-import React from 'react'
+import DeliveryAgentPortal from "../../components/agent/DeliveryAgentPortal"
 
-const Agent = () => {
-    return (
-        <div>Agent</div>
-    )
+export default function Home() {
+    return <DeliveryAgentPortal />
 }
-
-export default Agent
