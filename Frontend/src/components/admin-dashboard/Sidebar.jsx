@@ -17,7 +17,7 @@ export default function Sidebar() {
                     <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
                         <Package className="w-4 h-4" />
                     </div>
-                    <span className="font-bold text-sm">CourierPro</span>
+                    <span className="font-bold text-sm">ParcelPro</span>
                 </div>
             </div>
 
