@@ -135,5 +135,39 @@ router.get('/my-tasks', restrictTo('agent'), parcelController.getMyTasks);
  */
 router.get('/admin-metrics', restrictTo('admin'), parcelController.getAdminMetrics);
 
+// customer dashboard metrics
+/**
+ * @swagger
+ * /parcels/customer-metrics:
+ *   get:
+ *     summary: Get customer metrics (Customer only)
+ *     tags: [Parcels]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Success
+ */
+router.get('/customer-metrics', restrictTo('customer'), parcelController.getCustomerMetrics);
+
+// get parcel by id
+/**
+ * @swagger
+ * /parcels/{id}:
+ *   get:
+ *     summary: Get parcel by ID (All users)
+ *     tags: [Parcels]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Parcel ID
+ *     responses:
+ *       200:
+ *         description: Success
+ */
+router.get("/:id", protect, parcelController.getParcelById);
 
 module.exports = router;

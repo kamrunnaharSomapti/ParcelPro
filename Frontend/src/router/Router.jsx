@@ -11,7 +11,7 @@ import BookParcelPage from "../pages/customer/BookParcelPage";
 import CustomerPage from "../pages/customer/CustomerPage";
 
 export const router = createBrowserRouter([
-    { path: "/", element: <CustomerPage /> },
+    { path: "/", element: <Login /> },
     { path: "/login", element: <Login /> },
     { path: "/register", element: <RegisterPage /> },
     { path: "/unauthorized", element: <Unauthorized /> },

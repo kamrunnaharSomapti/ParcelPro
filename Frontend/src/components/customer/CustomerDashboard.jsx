@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Package, Truck, Clock, AlertCircle } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Package, Truck, Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react"
 import { StatCard } from "./StatCard"
 import { useNavigate } from "react-router-dom";
 import CustomerHeader from "./CustomerHeader";
@@ -7,11 +7,59 @@ import { OngoingOrders } from "./OngoingOrders"
 import { OrderStatsChart } from "./OrderStatsChart"
 import { DeliveryTimeline } from "./DeliveryTimeline";
 import { RecentOrdersTable } from "./RecentOrdersTableProps"
+import { useAxiosPrivate } from "../../api/useAxiosPrivate"
 
 
 export function CustomerDashboard() {
     const [currentPage, setCurrentPage] = useState(1)
+    const axiosPrivate = useAxiosPrivate();
+    const [metrics, setMetrics] = useState(null);
+
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const res = await axiosPrivate.get("/parcels/customer-metrics", {
+                    params: { range: "today" },
+                });
+                setMetrics(res.data?.data);
+            } catch (e) {
+                console.error("Customer metrics load failed:", e);
+            }
+        };
+        load();
+    }, [axiosPrivate]);
+    const cards = [
+        {
+            icon: Package,
+            label: "Total Bookings",
+            value: metrics ? String(metrics.totalBookings) : "—",
+            subtext: "today",
+            color: "blue",
+        },
+        {
+            icon: Truck,
+            label: "Active Deliveries",
+            value: metrics ? String(metrics.activeDeliveries) : "—",
+            subtext: "running",
+            color: "orange",
+        },
+        {
+            icon: CheckCircle,
+            label: "Delivered",
+            value: metrics ? String(metrics.deliveredCount) : "—",
+            subtext: "completed",
+            color: "green",
+        },
+        {
+            icon: XCircle,
+            label: "Failed",
+            value: metrics ? String(metrics.failedCount) : "—",
+            subtext: "issues",
+            color: "purple",
+        },
+    ];
 
     return (
         <div className="p-6 from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900  md:p-8">
@@ -21,21 +69,20 @@ export function CustomerDashboard() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatCard icon={Package} label="Total Orders" value="1,245" subtext="20% increase" color="blue" />
-                <StatCard icon={Truck} label="In Transit" value="42" subtext="5 on route" color="green" />
-                <StatCard icon={Clock} label="Pending" value="8" subtext="2 delayed" color="orange" />
-                <StatCard icon={AlertCircle} label="Issues" value="3" subtext="Needs attention" color="purple" />
+                {cards.map((c) => (
+                    <StatCard key={c.label} {...c} />
+                ))}
             </div>
 
             {/* Main Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
                 {/* Ongoing Orders */}
-                <div className="lg:col-span-2">
+                <div className="">
                     <OngoingOrders />
                 </div>
 
                 {/* Order Stats Chart */}
-                <OrderStatsChart />
+                {/* <OrderStatsChart /> */}
             </div>
 
             {/* Delivery Timeline */}

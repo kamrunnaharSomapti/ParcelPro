@@ -1,4 +1,5 @@
 import { Card, CardContent } from "./Card"
+
 const colorClasses = {
     blue: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
     green: "bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400",
@@ -7,6 +8,8 @@ const colorClasses = {
 }
 
 export function StatCard({ icon: Icon, label, value, subtext, color }) {
+
+
     return (
         <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white">
             <CardContent className="p-6">

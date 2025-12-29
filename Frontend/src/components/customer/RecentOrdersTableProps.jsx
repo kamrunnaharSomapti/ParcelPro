@@ -1,126 +1,104 @@
-import { ChevronLeft, ChevronRight, Eye } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./Card"
+import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./Card";
+import { useAxiosPrivate } from "../../api/useAxiosPrivate";
 
+const itemsPerPageDefault = 5;
 
-const ordersData = [
-    {
-        id: "ORD-2024-001",
-        customer: "Sarah Johnson",
-        date: "Jan 15, 2024",
-        amount: "$245.00",
-        status: "Delivered",
-        statusColor: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-        items: 3,
-    },
-    {
-        id: "ORD-2024-002",
-        customer: "Michael Chen",
-        date: "Jan 14, 2024",
-        amount: "$189.50",
-        status: "In Transit",
-        statusColor: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-        items: 2,
-    },
-    {
-        id: "ORD-2024-003",
-        customer: "Emma Wilson",
-        date: "Jan 13, 2024",
-        amount: "$512.75",
-        status: "Processing",
-        statusColor: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
-        items: 5,
-    },
-    {
-        id: "ORD-2024-004",
-        customer: "David Brown",
-        date: "Jan 12, 2024",
-        amount: "$98.20",
-        status: "Delivered",
-        statusColor: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-        items: 1,
-    },
-    {
-        id: "ORD-2024-005",
-        customer: "Lisa Anderson",
-        date: "Jan 11, 2024",
-        amount: "$334.60",
-        status: "Pending",
-        statusColor: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-        items: 4,
-    },
-    {
-        id: "ORD-2024-006",
-        customer: "James Martinez",
-        date: "Jan 10, 2024",
-        amount: "$421.00",
-        status: "Delivered",
-        statusColor: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-        items: 3,
-    },
-    {
-        id: "ORD-2024-007",
-        customer: "Nicole Taylor",
-        date: "Jan 09, 2024",
-        amount: "$567.80",
-        status: "Cancelled",
-        statusColor: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-        items: 2,
-    },
-    {
-        id: "ORD-2024-008",
-        customer: "Robert Garcia",
-        date: "Jan 08, 2024",
-        amount: "$276.45",
-        status: "Delivered",
-        statusColor: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-        items: 3,
-    },
-]
-
-const itemsPerPage = 5
+function formatDate(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    });
+}
 
 export function RecentOrdersTable({ currentPage, onPageChange }) {
-    const totalPages = Math.ceil(ordersData.length / itemsPerPage)
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const paginatedData = ordersData.slice(startIndex, startIndex + itemsPerPage)
+    const axiosPrivate = useAxiosPrivate();
+
+    const [rows, setRows] = useState([]);
+    const [meta, setMeta] = useState({ total: 0, page: 1, limit: itemsPerPageDefault });
+    const [loading, setLoading] = useState(false);
+
+    const fetchOrders = async (page = currentPage) => {
+        try {
+            setLoading(true);
+            const res = await axiosPrivate.get("/parcels/my-orders", {
+                params: { page, limit: meta.limit }, // add status/search later if you want
+            });
+
+            setRows(res.data?.data || []);
+            setMeta((m) => ({ ...m, ...(res.data?.meta || {}), page }));
+        } catch (err) {
+            console.error("Recent orders load failed:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrders(currentPage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage]);
+
+    const totalPages = Math.max(1, Math.ceil(meta.total / meta.limit));
+    const startIndex = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+    const endIndex = Math.min(meta.page * meta.limit, meta.total);
+
+    const tableData = useMemo(() => {
+        return rows.map((p) => ({
+            id: p.trackingId || String(p._id).slice(-6),
+            customer: p.sender?.name || "You",
+            date: formatDate(p.createdAt),
+            amount: p.paymentDetails?.amount ?? "—",
+            status: p.status || "Pending",
+            items: 1,
+            raw: p,
+        }));
+    }, [rows]);
 
     return (
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-sm bg-white ">
             <CardHeader>
                 <CardTitle className="text-xl">Recent Order History</CardTitle>
-                <CardDescription>Your last {ordersData.length} orders</CardDescription>
+                <CardDescription>
+                    {loading ? "Loading..." : `Your last ${meta.total} orders`}
+                </CardDescription>
             </CardHeader>
+
             <CardContent>
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-border">
-                                <th className="text-left py-3 px-4 font-semibold text-sm text-muted-foreground">Order ID</th>
-                                <th className="text-left py-3 px-4 font-semibold text-sm text-muted-foreground">Customer</th>
-                                <th className="text-left py-3 px-4 font-semibold text-sm text-muted-foreground">Date</th>
-                                <th className="text-left py-3 px-4 font-semibold text-sm text-muted-foreground">Amount</th>
-                                <th className="text-left py-3 px-4 font-semibold text-sm text-muted-foreground">Status</th>
-                                <th className="text-left py-3 px-4 font-semibold text-sm text-muted-foreground">Items</th>
-                                <th className="text-center py-3 px-4 font-semibold text-sm text-muted-foreground">Action</th>
+                            <tr className="border-b border-gray-200">
+                                <th className="text-left py-3 px-4 font-semibold text-sm text-gray-500">Tracking ID</th>
+                                <th className="text-left py-3 px-4 font-semibold text-sm text-gray-500">Date</th>
+                                <th className="text-left py-3 px-4 font-semibold text-sm text-gray-500">Amount</th>
+                                <th className="text-left py-3 px-4 font-semibold text-sm text-gray-500">Status</th>
+                                <th className="text-center py-3 px-4 font-semibold text-sm text-gray-500">Action</th>
                             </tr>
                         </thead>
+
                         <tbody>
-                            {paginatedData.map((order) => (
-                                <tr key={order.id} className="border-b border-border hover:bg-muted/50 transition-colors">
-                                    <td className="py-4 px-4 text-sm font-medium text-foreground">{order.id}</td>
-                                    <td className="py-4 px-4 text-sm text-foreground">{order.customer}</td>
-                                    <td className="py-4 px-4 text-sm text-muted-foreground">{order.date}</td>
-                                    <td className="py-4 px-4 text-sm font-semibold text-foreground">{order.amount}</td>
-                                    <td className="py-4 px-4">
-                                        <span>
-                                            {order.status}
-                                        </span>
+                            {!loading && tableData.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="py-6 px-4 text-sm text-gray-500">
+                                        No orders found.
                                     </td>
-                                    <td className="py-4 px-4 text-sm text-muted-foreground">{order.items}</td>
+                                </tr>
+                            )}
+
+                            {tableData.map((order) => (
+                                <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <td className="py-4 px-4 text-sm font-medium text-gray-900">{order.id}</td>
+                                    <td className="py-4 px-4 text-sm text-gray-500">{order.date}</td>
+                                    <td className="py-4 px-4 text-sm font-semibold text-gray-900">{order.amount}</td>
+                                    <td className="py-4 px-4 text-sm text-gray-700">{order.status}</td>
                                     <td className="py-4 px-4 text-center">
-                                        <span>
-                                            view
-                                        </span>
+                                        <button className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                                            <Eye className="w-4 h-4" /> View
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -129,45 +107,32 @@ export function RecentOrdersTable({ currentPage, onPageChange }) {
                 </div>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-                    <span className="text-sm text-muted-foreground">
-                        Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
-                        <span className="font-semibold text-foreground">
-                            {Math.min(startIndex + itemsPerPage, ordersData.length)}
-                        </span>{" "}
-                        of <span className="font-semibold text-foreground">{ordersData.length}</span> results
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                    <span className="text-sm text-gray-500">
+                        Showing <span className="font-semibold text-gray-900">{startIndex}</span> to{" "}
+                        <span className="font-semibold text-gray-900">{endIndex}</span> of{" "}
+                        <span className="font-semibold text-gray-900">{meta.total}</span>
                     </span>
-                    <div className="flex gap-2">
+
+                    <div className="flex gap-2 items-center">
                         <button
                             onClick={() => onPageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className="gap-2"
+                            disabled={currentPage <= 1 || loading}
+                            className="px-3 py-2 rounded-lg border bg-white disabled:opacity-50 inline-flex items-center gap-2"
                         >
-                            <ChevronLeft className="w-4 h-4" />
-                            Previous
+                            <ChevronLeft className="w-4 h-4" /> Previous
                         </button>
-                        <div className="flex items-center gap-2 px-4">
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                <button
-                                    key={page}
-                                    onClick={() => onPageChange(page)}
-                                    className="w-10 h-10"
-                                >
-                                    {page}
-                                </button>
-                            ))}
-                        </div>
+
                         <button
                             onClick={() => onPageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className="gap-2"
+                            disabled={currentPage >= totalPages || loading}
+                            className="px-3 py-2 rounded-lg border bg-white disabled:opacity-50 inline-flex items-center gap-2"
                         >
-                            Next
-                            <ChevronRight className="w-4 h-4" />
+                            Next <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
             </CardContent>
         </Card>
-    )
+    );
 }

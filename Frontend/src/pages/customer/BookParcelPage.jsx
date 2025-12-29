@@ -266,7 +266,7 @@ export default function BookParcelPage() {
     };
 
     return (
-        <div className="p-6 max-w-3xl">
+        <div className="p-6 max-w-3xl mx-auto">
             <h1 className="text-2xl font-bold">Book a Parcel</h1>
 
             <form className="mt-6 space-y-5" onSubmit={handleSubmit(onSubmit)}>

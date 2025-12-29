@@ -1,29 +1,72 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./Card"
-// import Image from "next/image"
+import { useEffect, useMemo, useState } from "react";
+import { useAxiosPrivate } from "../../api/useAxiosPrivate";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./Card";
 
-const ongoingOrders = [
-    {
-        id: "ORD-2024-1547",
-        product: "Wireless Headphones Pro",
-        // image: "/wireless-headphones.jpg",
-        status: "In Transit",
-        statusColor: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-        deliveryDate: "Dec 30, 2024",
-        progress: 75,
-        stages: [
-            { name: "Shipped", completed: true },
-            { name: "In Transit", completed: true },
-            { name: "Out for Delivery", completed: false },
-            { name: "Delivered", completed: false },
-        ],
-    },
+const STAGES = ["Pending", "Assigned", "Picked Up", "In Transit", "Delivered"];
 
+function buildStages(status) {
+    const idx = Math.max(0, STAGES.indexOf(status));
+    return STAGES.map((name, i) => ({
+        name,
+        completed: i <= idx,
+    }));
+}
 
-]
+function progressFromStatus(status) {
+    const idx = STAGES.indexOf(status);
+    if (idx < 0) return 0;
+    return Math.round((idx / (STAGES.length - 1)) * 100);
+}
 
-
+function formatDate(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 export function OngoingOrders() {
+    const axiosPrivate = useAxiosPrivate();
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    const fetchOrders = async () => {
+        try {
+            setLoading(true);
+            const res = await axiosPrivate.get("/parcels/my-orders", {
+                params: { activeOnly: "true", page: 1, limit: 10 },
+            });
+
+            setOrders(res.data?.data || []);
+        } catch (err) {
+            console.error("My orders load failed:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrders();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // convert backend parcels -> UI orders
+    const ongoingOrders = useMemo(() => {
+        return orders.map((p) => {
+            const status = p.status || "Pending";
+            const progress = progressFromStatus(status);
+
+            return {
+                id: p.trackingId || String(p._id).slice(-6),
+                product: p.parcelDetails?.type || "Parcel",
+                status,
+                deliveryDate: formatDate(p.updatedAt), // or your ETA field later
+                progress,
+                stages: buildStages(status),
+                amount: p.paymentDetails?.amount,
+            };
+        });
+    }, [orders]);
+
     return (
         <Card className="border-0 shadow-sm bg-white">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -31,64 +74,62 @@ export function OngoingOrders() {
                     <CardTitle className="text-xl">Ongoing Orders</CardTitle>
                     <CardDescription>View all active shipments</CardDescription>
                 </div>
-                <a href="#" className="text-sm text-blue-600 hover:underline">
-                    View All
-                </a>
+
+                <button onClick={fetchOrders} className="text-sm text-blue-600 hover:underline">
+                    Refresh
+                </button>
             </CardHeader>
+
             <CardContent className="space-y-6">
+                {loading && <p className="text-sm text-gray-500">Loading...</p>}
+
+                {!loading && ongoingOrders.length === 0 && (
+                    <p className="text-sm text-gray-500">No ongoing shipments.</p>
+                )}
+
                 {ongoingOrders.map((order) => (
-                    <div key={order.id} className="pb-6 border-b border-border last:border-0 last:pb-0">
-                        {/* Product Header */}
+                    <div key={order.id} className="pb-6 border-b border-gray-200 last:border-0 last:pb-0">
+                        {/* Header */}
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex gap-4 flex-1">
-                                <div className="relative w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-                                    {/* <Image src={order.image || "/placeholder.svg"} alt={order.product} fill className="object-cover" /> */}
-                                </div>
+                                <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0" />
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-foreground">{order.product}</h3>
-                                    <p className="text-sm text-muted-foreground">{order.id}</p>
-                                    {/* <Badge variant="outline" className={`mt-2 ${order.statusColor}`}>
-                                        {order.status}
-                                    </Badge> */}
+                                    <h3 className="font-semibold text-gray-900">{order.product}</h3>
+                                    <p className="text-sm text-gray-500">{order.id}</p>
+                                    <p className="text-xs text-gray-600 mt-1">Status: <span className="font-medium">{order.status}</span></p>
                                 </div>
                             </div>
-                            <a href="#" className="text-sm text-blue-600 hover:underline font-medium">
+
+                            <button className="text-sm text-blue-600 hover:underline font-medium">
                                 Track
-                            </a>
+                            </button>
                         </div>
 
                         {/* Estimated Delivery */}
                         <div className="mb-3 flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Estimated Delivery</span>
-                            <span className="font-medium text-foreground">{order.deliveryDate}</span>
+                            <span className="text-gray-500">Last Update</span>
+                            <span className="font-medium text-gray-900">{order.deliveryDate}</span>
                         </div>
 
-                        {/* Progress Percentage */}
-                        <div className="mb-2 text-sm font-medium text-foreground">{order.progress}%</div>
+                        {/* Progress */}
+                        <div className="mb-2 text-sm font-medium text-gray-900">{order.progress}%</div>
 
                         <div className="mb-4">
-                            <div className="relative h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mb-3">
-                                <div
-                                    className="h-full bg-blue-500 rounded-full transition-all"
-                                    style={{ width: `${order.progress}%` }}
-                                />
+                            <div className="relative h-2 rounded-full bg-gray-200 overflow-hidden mb-3">
+                                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${order.progress}%` }} />
                             </div>
 
-                            {/* Stage indicators */}
+                            {/* Stages */}
                             <div className="flex justify-between text-xs">
                                 {order.stages.map((stage, idx) => (
                                     <div key={idx} className="flex flex-col items-center gap-1 flex-1">
                                         <div
                                             className={`w-3 h-3 rounded-full border-2 ${stage.completed
                                                 ? "bg-green-500 border-green-500"
-                                                : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                                : "border-gray-300 bg-white"
                                                 }`}
                                         />
-                                        <span
-                                            className={
-                                                stage.completed ? "text-green-600 dark:text-green-400 font-medium" : "text-muted-foreground"
-                                            }
-                                        >
+                                        <span className={stage.completed ? "text-green-600 font-medium" : "text-gray-500"}>
                                             {stage.name}
                                         </span>
                                     </div>
@@ -99,5 +140,5 @@ export function OngoingOrders() {
                 ))}
             </CardContent>
         </Card>
-    )
+    );
 }

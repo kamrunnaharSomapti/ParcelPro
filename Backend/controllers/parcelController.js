@@ -144,14 +144,41 @@ exports.updateStatus = async (req, res) => {
 };
 
 // Get parcels for the logged-in Customer
+// CUSTOMER: My orders (paginated + filters)
 exports.getMyOrders = async (req, res) => {
     try {
-        const parcels = await Parcel.find({ sender: req.user._id });
-        res.status(200).json({ status: 'success', data: parcels });
+        const { page = 1, limit = 10, status, search } = req.query;
+
+        const filter = { sender: req.user._id };
+
+        if (status) filter.status = status;
+
+        if (search) {
+            filter.$or = [
+                { trackingId: { $regex: search, $options: "i" } },
+                { "pickupLocation.address": { $regex: search, $options: "i" } },
+                { "deliveryLocation.address": { $regex: search, $options: "i" } },
+            ];
+        }
+
+        const q = Parcel.find(filter)
+            .populate({ path: "deliveryAgent", select: "name phone" })
+            .sort({ createdAt: -1 })
+            .skip((Number(page) - 1) * Number(limit))
+            .limit(Number(limit));
+
+        const [data, total] = await Promise.all([q, Parcel.countDocuments(filter)]);
+
+        res.status(200).json({
+            status: "success",
+            data,
+            meta: { total, page: Number(page), limit: Number(limit) },
+        });
     } catch (err) {
-        res.status(400).json({ status: 'fail', message: err.message });
+        res.status(400).json({ status: "fail", message: err.message });
     }
 };
+
 // Get parcels assigned to the logged-in Agent
 exports.getMyTasks = async (req, res) => {
     try {
@@ -215,6 +242,98 @@ exports.getAdminMetrics = async (req, res) => {
                 activeCustomers
             }
         });
+    } catch (err) {
+        res.status(400).json({ status: "fail", message: err.message });
+    }
+};
+
+// get customer's matric for dashboard
+// CUSTOMER dashboard metrics
+exports.getCustomerMetrics = async (req, res) => {
+    try {
+        const range = (req.query.range || "today").toLowerCase();
+        const { start, end } = getRange(range);
+
+        const customerId = req.user._id;
+
+        // your definition of "active"
+        const activeStatuses = ["Pending", "Assigned", "Picked Up", "In Transit"];
+
+        const [
+            totalBookings,
+            activeDeliveries,
+            deliveredCount,
+            failedCount,
+            codAgg,
+        ] = await Promise.all([
+            Parcel.countDocuments({
+                sender: customerId,
+                createdAt: { $gte: start, $lte: end },
+            }),
+
+            Parcel.countDocuments({
+                sender: customerId,
+                status: { $in: activeStatuses },
+            }),
+
+            Parcel.countDocuments({
+                sender: customerId,
+                status: "Delivered",
+                updatedAt: { $gte: start, $lte: end },
+            }),
+
+            Parcel.countDocuments({
+                sender: customerId,
+                status: "Failed",
+                updatedAt: { $gte: start, $lte: end },
+            }),
+
+            // COD total in selected range (booked in that range)
+            Parcel.aggregate([
+                {
+                    $match: {
+                        sender: customerId,
+                        createdAt: { $gte: start, $lte: end },
+                        "paymentDetails.method": "COD",
+                    },
+                },
+                { $group: { _id: null, total: { $sum: "$paymentDetails.amount" } } },
+            ]),
+        ]);
+
+        const codAmount = codAgg?.[0]?.total || 0;
+
+        return res.status(200).json({
+            status: "success",
+            data: {
+                range,
+                totalBookings,
+                activeDeliveries,
+                deliveredCount,
+                failedCount,
+                codAmount,
+            },
+        });
+    } catch (err) {
+        res.status(400).json({ status: "fail", message: err.message });
+    }
+};
+// get percel by id 
+exports.getParcelById = async (req, res) => {
+    try {
+        const parcel = await Parcel.findById(req.params.id)
+            .populate({ path: "sender", select: "name phone" })
+            .populate({ path: "deliveryAgent", select: "name phone" })
+            .populate({ path: "assignedBy", select: "name role" });
+
+        if (!parcel) return res.status(404).json({ message: "Parcel not found" });
+
+        // customer can only view their own parcel
+        if (req.user.role === "customer" && String(parcel.sender?._id) !== String(req.user._id)) {
+            return res.status(403).json({ message: "Not allowed" });
+        }
+
+        return res.status(200).json({ status: "success", data: parcel });
     } catch (err) {
         res.status(400).json({ status: "fail", message: err.message });
     }
