@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-
 export default function PlaceAutocomplete({ isLoaded, onPlaceSelect }) {
     const hostRef = useRef(null);
     const widgetRef = useRef(null);
@@ -16,6 +15,13 @@ export default function PlaceAutocomplete({ isLoaded, onPlaceSelect }) {
 
                 const widget = new window.google.maps.places.PlaceAutocompleteElement({
                 });
+                widget.style.width = "100%";
+                widget.style.display = "block";
+                widget.style.colorScheme = "light";
+                widget.style.setProperty("--gmp-mat-color-surface", "#ffffff");        // background
+                widget.style.setProperty("--gmp-mat-color-on-surface", "#ffffff");     // text
+                widget.style.setProperty("--gmp-mat-color-outline-decorative", "#ffffff"); // border-ish
+                widget.style.setProperty("--gmp-mat-color-on-surface", "#ffffff");     // text  
 
                 widgetRef.current = widget;
                 hostRef.current.innerHTML = "";
@@ -57,5 +63,6 @@ export default function PlaceAutocomplete({ isLoaded, onPlaceSelect }) {
         return () => cleanup();
     }, [isLoaded, onPlaceSelect]);
 
-    return <div ref={hostRef} className="w-full" />;
+    return <div ref={hostRef} className="w-full ring-2 ring-blue-600 bg-white rounded-md" />;
 }
+

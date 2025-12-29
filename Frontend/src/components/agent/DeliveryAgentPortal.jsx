@@ -6,6 +6,7 @@ import ParcelCard from "./ParcelCard";
 import StatusUpdateModal from "./StatusUpdateModal";
 import { normalizeStatus } from "../../api/constants";
 import { useAxiosPrivate } from "../../api/useAxiosPrivate";
+import { ManualLocationTest } from "./ManualLocationTest";
 
 export default function DeliveryAgentPortal() {
     const axiosPrivate = useAxiosPrivate();
@@ -122,12 +123,16 @@ export default function DeliveryAgentPortal() {
                     <div className="text-center py-12 text-gray-600">Loading...</div>
                 ) : filteredParcels.length > 0 ? (
                     filteredParcels.map((parcel) => (
-                        <ParcelCard
-                            key={parcel._id}
-                            parcel={parcel}
-                            onStatusUpdate={openStatusModal}
-                            onViewRoute={openRoute}
-                        />
+                        <div key={parcel._id} className="mb-4">
+                            <ParcelCard
+                                parcel={parcel}
+                                onStatusUpdate={openStatusModal}
+                                onViewRoute={openRoute}
+                            />
+
+                            {/* Manual test for THIS parcel */}
+                            <ManualLocationTest parcelId={parcel._id} />
+                        </div>
                     ))
                 ) : (
                     <div className="text-center py-12">
@@ -146,6 +151,7 @@ export default function DeliveryAgentPortal() {
                     onConfirm={confirmStatus}
                 />
             )}
+
         </div>
     );
 }

@@ -42,7 +42,7 @@ const AgentHeader = ({ loading,
                     </div>
                 </div>
 
-                <div className="relative">
+                {/* <div className="relative">
                     <input
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
@@ -51,7 +51,7 @@ const AgentHeader = ({ loading,
                         className="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white placeholder-blue-100 focus:outline-none focus:bg-opacity-30 transition-all text-sm"
                     />
                     <span className="absolute right-3 top-2.5 text-blue-100">🔍</span>
-                </div>
+                </div> */}
 
                 <div className="mt-4 grid grid-cols-4 gap-2">
                     <div className="bg-white/20 rounded-lg p-2 text-center">

@@ -12,7 +12,7 @@ export default function StatusUpdateModal({ parcel, saving, onClose, onConfirm }
     }, [currentStatus]);
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-4 ring-2 ring-gray-200">
             <div className="bg-white rounded-t-2xl md:rounded-lg w-full md:max-w-sm max-h-96 overflow-y-auto">
                 <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
                     <h3 className="font-semibold text-gray-900">Update Status</h3>

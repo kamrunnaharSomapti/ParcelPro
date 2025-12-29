@@ -62,20 +62,20 @@ export function CustomerDashboard() {
     ];
 
     return (
-        <div className="p-6 from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900  md:p-8">
+        <div className="in-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
             {/* Header */}
             <CustomerHeader />
 
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4  max-w-5xl mx-auto px-4 py-4 md:py-6">
                 {cards.map((c) => (
                     <StatCard key={c.label} {...c} />
                 ))}
             </div>
 
             {/* Main Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-4 max-w-5xl mx-auto px-4 py-4 md:py-6">
                 {/* Ongoing Orders */}
                 <div className="">
                     <OngoingOrders />
@@ -86,7 +86,7 @@ export function CustomerDashboard() {
             </div>
 
             {/* Delivery Timeline */}
-            <div className="mb-8">
+            <div className="mb-4 max-w-5xl mx-auto px-4 py-4 md:py-6 bg-white">
                 <DeliveryTimeline />
             </div>
 

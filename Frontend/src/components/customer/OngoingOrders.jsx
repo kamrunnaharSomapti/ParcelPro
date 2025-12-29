@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAxiosPrivate } from "../../api/useAxiosPrivate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./Card";
+import { ShoppingBasket } from 'lucide-react';
 
 const STAGES = ["Pending", "Assigned", "Picked Up", "In Transit", "Delivered"];
 
@@ -35,6 +36,7 @@ export function OngoingOrders() {
             const res = await axiosPrivate.get("/parcels/my-orders", {
                 params: { activeOnly: "true", page: 1, limit: 10 },
             });
+            console.log("My orders load failed:", res.data);
 
             setOrders(res.data?.data || []);
         } catch (err) {
@@ -92,17 +94,13 @@ export function OngoingOrders() {
                         {/* Header */}
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex gap-4 flex-1">
-                                <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0" />
+                                <ShoppingBasket className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0" />
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-gray-900">{order.product}</h3>
                                     <p className="text-sm text-gray-500">{order.id}</p>
                                     <p className="text-xs text-gray-600 mt-1">Status: <span className="font-medium">{order.status}</span></p>
                                 </div>
                             </div>
-
-                            <button className="text-sm text-blue-600 hover:underline font-medium">
-                                Track
-                            </button>
                         </div>
 
                         {/* Estimated Delivery */}

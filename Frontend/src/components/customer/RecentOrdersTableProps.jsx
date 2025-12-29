@@ -59,7 +59,7 @@ export function RecentOrdersTable({ currentPage, onPageChange }) {
     }, [rows]);
 
     return (
-        <Card className="border-0 shadow-sm bg-white ">
+        <Card className="border-0 shadow-sm bg-white max-w-5xl mx-auto px-4 py-4 md:py-6 ">
             <CardHeader>
                 <CardTitle className="text-xl">Recent Order History</CardTitle>
                 <CardDescription>
@@ -76,7 +76,7 @@ export function RecentOrdersTable({ currentPage, onPageChange }) {
                                 <th className="text-left py-3 px-4 font-semibold text-sm text-gray-500">Date</th>
                                 <th className="text-left py-3 px-4 font-semibold text-sm text-gray-500">Amount</th>
                                 <th className="text-left py-3 px-4 font-semibold text-sm text-gray-500">Status</th>
-                                <th className="text-center py-3 px-4 font-semibold text-sm text-gray-500">Action</th>
+
                             </tr>
                         </thead>
 
@@ -95,11 +95,7 @@ export function RecentOrdersTable({ currentPage, onPageChange }) {
                                     <td className="py-4 px-4 text-sm text-gray-500">{order.date}</td>
                                     <td className="py-4 px-4 text-sm font-semibold text-gray-900">{order.amount}</td>
                                     <td className="py-4 px-4 text-sm text-gray-700">{order.status}</td>
-                                    <td className="py-4 px-4 text-center">
-                                        <button className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                                            <Eye className="w-4 h-4" /> View
-                                        </button>
-                                    </td>
+
                                 </tr>
                             ))}
                         </tbody>

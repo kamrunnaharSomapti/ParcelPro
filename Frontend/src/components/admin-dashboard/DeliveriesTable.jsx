@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import AssignAgentModal from "./AssignAgentModal";
 
 const statusConfig = {
     Delivered: { bg: "bg-green-100", text: "text-green-800" },
@@ -37,7 +38,7 @@ export default function DeliveriesTable() {
             const res = await axiosPrivate.get("/parcels/all", {
                 params: { page, limit: meta.limit },
             });
-            // console.log(res.data);
+            console.log(res.data);
 
             setDeliveries(res.data?.data || []);
             setMeta((m) => ({ ...m, ...(res.data?.meta || {}), page }));
@@ -65,6 +66,7 @@ export default function DeliveriesTable() {
     }, []);
 
     const openAssignModal = async (parcel) => {
+        console.log("parcel", parcel);
         setSelectedParcel(parcel);
         setSelectedAgentId("");
         setIsModalOpen(true);
@@ -91,13 +93,15 @@ export default function DeliveriesTable() {
 
         try {
             setAssigning(true);
-            await axiosPrivate.patch(`/parcels/assign/${selectedParcel._id}`, {
+            const assignRes = await axiosPrivate.patch(`/parcels/assign/${selectedParcel._id}`, {
                 agentId: selectedAgentId,
             });
+            console.log("assignRes-------------", assignRes);
 
             closeModal();
 
-            await fetchParcels(meta.page);
+            const fetchParcelsRes = await fetchParcels(meta.page);
+            console.log(fetchParcelsRes); //came undefined why
         } catch (err) {
             alert(err?.response?.data?.message || "Failed to assign agent");
             console.error("Assign failed:", err);
@@ -204,7 +208,7 @@ export default function DeliveriesTable() {
                             return (
                                 <tr key={p._id} className="hover:bg-gray-50 transition">
                                     <td className="px-6 py-4 text-sm font-semibold text-blue-600">
-                                        {String(p._id).slice(-6)}
+                                        {p.trackingId || String(p._id).slice(-6)}
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-900">
                                         {p.sender?.name || "—"}
@@ -290,56 +294,17 @@ export default function DeliveriesTable() {
 
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200">
-                        <div className="flex items-center justify-between p-4 border-b">
-                            <h3 className="text-lg font-semibold">Assign Agent</h3>
-                            <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="p-4 space-y-3">
-                            <div className="text-sm text-gray-600">
-                                Booking: <span className="font-semibold text-gray-900">{String(selectedParcel?._id).slice(-6)}</span>
-                            </div>
-
-                            <label className="text-sm font-medium text-gray-700">Select Agent</label>
-                            <select
-                                value={selectedAgentId}
-                                onChange={(e) => setSelectedAgentId(e.target.value)}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                                disabled={agentsLoading || assigning}
-                            >
-                                <option value="">-- Select --</option>
-                                {agents.map((a) => (
-                                    <option key={a._id} value={a._id}>
-                                        {a.name} {a.phone ? `(${a.phone})` : ""}
-                                    </option>
-                                ))}
-                            </select>
-
-                            {agentsLoading && <p className="text-sm text-gray-500">Loading agents...</p>}
-                        </div>
-
-                        <div className="p-4 border-t flex justify-end gap-2">
-                            <button
-                                onClick={closeModal}
-                                className="px-4 py-2 rounded-lg border bg-white"
-                                disabled={assigning}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleAssign}
-                                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                                disabled={assigning || agentsLoading}
-                            >
-                                {assigning ? "Assigning..." : "Confirm Assign"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <AssignAgentModal
+                    open={isModalOpen}
+                    onClose={closeModal}
+                    parcel={selectedParcel}
+                    agents={agents}
+                    agentsLoading={agentsLoading}
+                    assigning={assigning}
+                    selectedAgentId={selectedAgentId}
+                    onChangeAgent={setSelectedAgentId}
+                    onConfirm={handleAssign}
+                />
             )}
         </div>
     );

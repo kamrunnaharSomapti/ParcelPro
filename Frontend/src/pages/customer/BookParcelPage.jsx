@@ -42,14 +42,11 @@ export default function BookParcelPage() {
     const navigate = useNavigate();
     const axiosPrivate = useAxiosPrivate();
 
-    // Trim the key to prevent InvalidKeyMapError due to spaces
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY?.trim();
 
-    // Debugging: Alert if key doesn't look like an API key (starts with AIza)
     useEffect(() => {
         if (apiKey && !apiKey.startsWith("AIza")) {
             console.error("Invalid Google Maps API Key format. It should start with 'AIza'. Current key:", apiKey);
-            // alert("Warning: Your Google Maps API Key does not appear to be valid (should start with AIza). Check your .env file.");
         }
     }, [apiKey]);
 
@@ -81,7 +78,7 @@ export default function BookParcelPage() {
 
     const paymentMethod = watch("paymentDetails.method");
 
-    // Watch lat/lng to render markers
+
     const pickupLat = safeNumber(watch("pickupLocation.lat"));
     const pickupLng = safeNumber(watch("pickupLocation.lng"));
     const deliveryLat = safeNumber(watch("deliveryLocation.lat"));
@@ -124,7 +121,7 @@ export default function BookParcelPage() {
                     setValue("pickupLocation.lat", lat);
                     setValue("pickupLocation.lng", lng);
 
-                    // Try to auto-fill address (optional)
+
                     if (apiKey) {
                         const addr = await reverseGeocode({ lat, lng, apiKey });
                         if (addr) setValue("pickupLocation.address", addr);
@@ -150,7 +147,7 @@ export default function BookParcelPage() {
         if (!place) return;
 
         const address = place.formatted_address || place.name || "";
-        // place.geometry.location is a LatLng object from the API
+
         const lat = place.geometry?.location?.lat?.();
         const lng = place.geometry?.location?.lng?.();
 
@@ -163,7 +160,7 @@ export default function BookParcelPage() {
     };
 
     const handleMapClick = async (e) => {
-        // Click-to-set delivery point (very useful)
+
         const lat = e.latLng.lat();
         const lng = e.latLng.lng();
 
@@ -177,7 +174,7 @@ export default function BookParcelPage() {
                 if (addr) {
                     setValue("pickupLocation.address", addr, { shouldValidate: true, shouldDirty: true });
                 } else {
-                    // Better fallback text than lat/lng
+
                     setValue("pickupLocation.address", "Current Location (GPS)", { shouldValidate: true, shouldDirty: true });
                 }
             } else {
@@ -426,7 +423,7 @@ export default function BookParcelPage() {
                     <p className="text-sm text-red-500">{errors.root.server.message}</p>
                 ) : null}
 
-                <button className="btn btn-primary w-full h-11" disabled={isSubmitting}>
+                <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold px-4 py-2 rounded-md hover:from-blue-700 hover:to-indigo-700 transition-colors w-full h-11" disabled={isSubmitting}>
                     {isSubmitting ? "Booking..." : "Confirm Booking"}
                 </button>
             </form>
