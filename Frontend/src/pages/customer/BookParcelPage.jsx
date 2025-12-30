@@ -20,7 +20,7 @@ async function reverseGeocode({ lat, lng, apiKey }) {
     const url =
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}` +
         `&key=${apiKey}&language=en`;
-
+    console.log(url);
     const res = await fetch(url);
     const data = await res.json();
 
@@ -172,13 +172,13 @@ export default function BookParcelPage() {
                 const addr = await reverseGeocode({ lat, lng, apiKey });
 
                 if (addr) {
-                    setValue("pickupLocation.address", addr, { shouldValidate: true, shouldDirty: true });
+                    setValue("deliveryLocation.address", addr, { shouldValidate: true, shouldDirty: true });
                 } else {
-
-                    setValue("pickupLocation.address", "Current Location (GPS)", { shouldValidate: true, shouldDirty: true });
+                    setValue("deliveryLocation.address", `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                    });
                 }
-            } else {
-                setValue("pickupLocation.address", "Current Location (GPS)", { shouldValidate: true, shouldDirty: true });
             }
             setMapMsg("Delivery location selected from map.");
         } catch {

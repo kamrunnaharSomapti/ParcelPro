@@ -101,15 +101,39 @@ export default function DeliveryAgentPortal() {
         }
     };
 
+    const buildGoogleDirUrl = (parcel) => {
+        const p = parcel.pickupLocation;
+        const d = parcel.deliveryLocation;
+
+        // Prefer coordinates (best). Fall back to address.
+        const origin =
+            p?.lat != null && p?.lng != null ? `${p.lat},${p.lng}` : (p?.address || "");
+
+        const destination =
+            d?.lat != null && d?.lng != null ? `${d.lat},${d.lng}` : (d?.address || "");
+
+        if (!origin || origin === "—" || !destination || destination === "—") {
+            alert("Pickup/Delivery location missing. Add valid address or lat/lng.");
+            return null;
+        }
+
+        return (
+            `https://www.google.com/maps/dir/?api=1` +
+            `&origin=${encodeURIComponent(origin)}` +
+            `&destination=${encodeURIComponent(destination)}` +
+            `&travelmode=driving`
+        );
+    };
+
     const openRoute = (parcel) => {
-        const pickup = parcel.pickupLocation?.address;
-        const drop = parcel.deliveryLocation?.address;
+        const url = buildGoogleDirUrl(parcel);
+        if (url) window.open(url, "_blank");
+    };
 
-        const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-            pickup || ""
-        )}&destination=${encodeURIComponent(drop || "")}&travelmode=driving`;
-
-        window.open(url, "_blank");
+    const suggestShortestPath = (parcel) => {
+        // Google Maps will auto-suggest fastest/shortest driving route
+        const url = buildGoogleDirUrl(parcel);
+        if (url) window.open(url, "_blank");
     };
 
     return (
@@ -119,6 +143,13 @@ export default function DeliveryAgentPortal() {
             <StatusTabs activeTab={activeTab} setActiveTab={setActiveTab} counts={counts} />
 
             <div className="max-w-2xl mx-auto px-4 py-4 pb-24">
+
+                {filteredParcels?.length > 0 ? (
+                    <div className="mb-4">
+                        <ManualLocationTest parcelId={filteredParcels[0]._id} />
+                    </div>
+                ) : null}
+
                 {loading ? (
                     <div className="text-center py-12 text-gray-600">Loading...</div>
                 ) : filteredParcels.length > 0 ? (
@@ -128,10 +159,9 @@ export default function DeliveryAgentPortal() {
                                 parcel={parcel}
                                 onStatusUpdate={openStatusModal}
                                 onViewRoute={openRoute}
+                                onSuggestShortestPath={suggestShortestPath}
                             />
 
-                            {/* Manual test for THIS parcel */}
-                            <ManualLocationTest parcelId={parcel._id} />
                         </div>
                     ))
                 ) : (
@@ -142,6 +172,7 @@ export default function DeliveryAgentPortal() {
                     </div>
                 )}
             </div>
+
 
             {modalType === "status" && selectedParcel && (
                 <StatusUpdateModal

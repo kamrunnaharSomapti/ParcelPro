@@ -36,11 +36,11 @@ export function OngoingOrders() {
             const res = await axiosPrivate.get("/parcels/my-orders", {
                 params: { activeOnly: "true", page: 1, limit: 10 },
             });
-            console.log("My orders load failed:", res.data);
+            // console.log("My orders load failed:", res.data);
 
             setOrders(res.data?.data || []);
         } catch (err) {
-            console.error("My orders load failed:", err);
+            // console.error("My orders load failed:", err);
         } finally {
             setLoading(false);
         }

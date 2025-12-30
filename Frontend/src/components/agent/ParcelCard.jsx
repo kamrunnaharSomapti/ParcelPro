@@ -1,7 +1,7 @@
 import { Clock, Navigation, Package, Phone } from "lucide-react";
 import { normalizeStatus, STATUS_CONFIG } from "../../api/constants";
 
-export default function ParcelCard({ parcel, onStatusUpdate, onViewRoute }) {
+export default function ParcelCard({ parcel, onStatusUpdate, onViewRoute, onSuggestShortestPath }) {
     const status = normalizeStatus(parcel.status);
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
 
@@ -80,6 +80,13 @@ export default function ParcelCard({ parcel, onStatusUpdate, onViewRoute }) {
                 >
                     <Navigation className="w-3 h-3" />
                     Route
+                </button>
+                <button
+                    onClick={() => onSuggestShortestPath(parcel)}
+                    className="flex-1 min-w-0 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-1"
+                >
+                    <Navigation className="w-3 h-3" />
+                    Suggest Shortest Path
                 </button>
             </div>
         </div>
