@@ -1,10 +1,16 @@
+import { useMemo } from "react";
 import { useState } from "react";
 import { io } from "socket.io-client";
-const socket = io("http://localhost:8000");
+// const socket = io("http://localhost:8000");
 
 export function ManualLocationTest({ parcelId }) {
     const [lat, setLat] = useState(23.7808875);
     const [lng, setLng] = useState(90.2792371);
+    const socket = useMemo(() => {
+        return io(import.meta.env.VITE_SOCKET_URL, {
+            transports: ["websocket"],
+        });
+    }, []);
 
     const send = () => {
         socket.emit("agent:location:update", { parcelId, lat: Number(lat), lng: Number(lng) });
