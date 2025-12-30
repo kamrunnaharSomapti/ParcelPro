@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useAxiosPrivate } from "../../api/useAxiosPrivate";
 
-const SOCKET_URL = "http://localhost:8000";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000";
 
 const STATUS_LABEL = {
     Pending: "Pending",
@@ -19,7 +19,7 @@ const STATUS_LABEL = {
 
 const STATUS_ORDER = ["Pending", "Assigned", "Picked Up", "In Transit", "Delivered"];
 
-const MAP_LIBRARIES = []; // tracking doesn't need places
+const MAP_LIBRARIES = [];
 const MAP_CONTAINER_STYLE = { width: "100%", height: "260px" };
 const DEFAULT_CENTER = { lat: 23.8103, lng: 90.4125 }; // Dhaka
 
@@ -72,7 +72,6 @@ function buildTimeline(parcel) {
 export function DeliveryTimeline() {
     const axiosPrivate = useAxiosPrivate();
 
-
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY?.trim();
     const { isLoaded } = useLoadScript({
         googleMapsApiKey: apiKey,
@@ -80,6 +79,8 @@ export function DeliveryTimeline() {
     });
 
     const socketRef = useRef(null);
+    const mapRef = useRef(null);
+
     const selectedIdRef = useRef("");
     const lastJoinedRef = useRef("");
 
@@ -94,7 +95,7 @@ export function DeliveryTimeline() {
     const [liveStatus, setLiveStatus] = useState(null);
     const [liveHistory, setLiveHistory] = useState(null);
 
-    // keep ref synced (fix stale id inside socket callbacks)
+    // keep selected id in ref (so socket callbacks always use latest id)
     useEffect(() => {
         selectedIdRef.current = selectedParcelId || "";
     }, [selectedParcelId]);
@@ -114,30 +115,33 @@ export function DeliveryTimeline() {
         return buildTimeline(mergedParcel);
     }, [mergedParcel]);
 
-    const canShowLive = useMemo(() => {
-        const s = mergedParcel?.status;
-        return ["Assigned", "Picked Up", "In Transit"].includes(s);
-    }, [mergedParcel?.status]);
-
     const currentLoc = mergedParcel?.currentLocation || null;
 
-    // ✅ markers/center must be inside component (based on state)
+    // ✅ SHOW agent marker whenever currentLocation exists (no status blocking)
     const agentMarker = useMemo(() => {
-        if (!canShowLive) return null;
         if (currentLoc?.lat == null || currentLoc?.lng == null) return null;
-        return { lat: Number(currentLoc.lat), lng: Number(currentLoc.lng) };
-    }, [canShowLive, currentLoc?.lat, currentLoc?.lng]);
+        const lat = Number(currentLoc.lat);
+        const lng = Number(currentLoc.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return { lat, lng };
+    }, [currentLoc?.lat, currentLoc?.lng]);
 
     const pickupMarker = useMemo(() => {
         const p = mergedParcel?.pickupLocation;
         if (p?.lat == null || p?.lng == null) return null;
-        return { lat: Number(p.lat), lng: Number(p.lng) };
+        const lat = Number(p.lat);
+        const lng = Number(p.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return { lat, lng };
     }, [mergedParcel?.pickupLocation?.lat, mergedParcel?.pickupLocation?.lng]);
 
     const deliveryMarker = useMemo(() => {
         const d = mergedParcel?.deliveryLocation;
         if (d?.lat == null || d?.lng == null) return null;
-        return { lat: Number(d.lat), lng: Number(d.lng) };
+        const lat = Number(d.lat);
+        const lng = Number(d.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return { lat, lng };
     }, [mergedParcel?.deliveryLocation?.lat, mergedParcel?.deliveryLocation?.lng]);
 
     const mapCenter = useMemo(() => {
@@ -169,7 +173,7 @@ export function DeliveryTimeline() {
             const p = res.data?.data || null;
             setParcel(p);
 
-            // reset overlays from snapshot
+            // refresh snapshot
             setLiveLocation(p?.currentLocation || null);
             setLiveStatus(null);
             setLiveHistory(null);
@@ -180,29 +184,60 @@ export function DeliveryTimeline() {
         }
     };
 
-    // init socket once
+    //  INIT SOCKET ONCE
     useEffect(() => {
         const socket = io(SOCKET_URL, {
-            transports: ["polling", "websocket"],
             path: "/socket.io",
+            transports: ["polling", "websocket"],
+            timeout: 20000,
+            reconnection: true,
+            reconnectionAttempts: 10,
         });
 
         socketRef.current = socket;
 
         socket.on("connect", () => {
+            console.log("✅ Customer socket connected:", socket.id);
+
             const id = selectedIdRef.current;
             if (id) {
                 socket.emit("parcel:join", { parcelId: id });
+                console.log("✅ joined parcel room:", id);
                 lastJoinedRef.current = id;
             }
         });
 
-        socket.on("parcel:location", (payload) => {
+        socket.on("connect_error", (e) => console.log("❌ Customer connect_error:", e.message));
+        socket.on("disconnect", (r) => console.log("⚠️ Customer disconnected:", r));
+
+        // Debug: show ANY server event name (very useful)
+        socket.onAny((event, payload) => {
+            // comment this if too noisy
+            // console.log("📡 SOCKET EVENT:", event, payload);
+        });
+
+        const handleLoc = (payload) => {
             const id = selectedIdRef.current;
             if (!id) return;
-            if (payload?.parcelId !== id) return;
-            setLiveLocation(payload.currentLocation || null);
-        });
+
+            const parcelId = payload?.parcelId;
+            if (parcelId !== id) return;
+
+            const loc =
+                payload?.currentLocation ||
+                payload?.location ||
+                (payload?.lat != null && payload?.lng != null ? { lat: payload.lat, lng: payload.lng } : null);
+
+            if (loc) {
+                console.log("✅ LOCATION EVENT RECEIVED:", payload);
+                setLiveLocation(loc);
+            }
+        };
+
+        // listen for any possible location event names
+        socket.on("parcel:location", handleLoc);
+        socket.on("parcel:location:updated", handleLoc);
+        socket.on("agent:location:update", handleLoc);
 
         socket.on("parcel:status", (payload) => {
             const id = selectedIdRef.current;
@@ -222,17 +257,19 @@ export function DeliveryTimeline() {
         };
     }, []);
 
-    // load orders on mount
+    // load orders once
     useEffect(() => {
         loadOrders();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // when selected changes: leave old + join new + fetch snapshot
+    //  when selected changes: leave old + join new + fetch snapshot
     useEffect(() => {
         const socket = socketRef.current;
         const nextId = selectedParcelId;
         if (!nextId) return;
+
+        console.log("🔄 switching parcel to:", nextId);
 
         if (socket && lastJoinedRef.current && lastJoinedRef.current !== nextId) {
             socket.emit("parcel:leave", { parcelId: lastJoinedRef.current });
@@ -240,12 +277,32 @@ export function DeliveryTimeline() {
 
         if (socket) {
             socket.emit("parcel:join", { parcelId: nextId });
+            console.log("✅ joined parcel room:", nextId);
             lastJoinedRef.current = nextId;
         }
 
         loadParcel(nextId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedParcelId]);
+
+
+    useEffect(() => {
+        if (!selectedParcelId) return;
+
+        const t = setInterval(() => {
+            loadParcel(selectedParcelId);
+        }, 2000);
+
+        return () => clearInterval(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedParcelId]);
+
+
+    useEffect(() => {
+        if (agentMarker && mapRef.current) {
+            mapRef.current.panTo(agentMarker);
+        }
+    }, [agentMarker]);
 
     return (
         <Card className="border-0 shadow-sm">
@@ -291,19 +348,17 @@ export function DeliveryTimeline() {
                 <div className="rounded-lg overflow-hidden border border-gray-200">
                     {isLoaded ? (
                         <GoogleMap
+                            onLoad={(map) => (mapRef.current = map)}
                             mapContainerStyle={MAP_CONTAINER_STYLE}
                             center={mapCenter}
                             zoom={13}
-                            // key helps reset map when switching parcels quickly
                             key={selectedParcelId || "map"}
                         >
                             {pickupMarker && <Marker position={pickupMarker} label="P" />}
                             {deliveryMarker && <Marker position={deliveryMarker} label="D" />}
                             {agentMarker && <Marker position={agentMarker} label="A" />}
 
-                            {agentMarker && deliveryMarker && (
-                                <Polyline path={[agentMarker, deliveryMarker]} />
-                            )}
+                            {agentMarker && deliveryMarker && <Polyline path={[agentMarker, deliveryMarker]} />}
                         </GoogleMap>
                     ) : (
                         <div className="h-[260px] flex items-center justify-center text-sm text-gray-500">
@@ -338,9 +393,7 @@ export function DeliveryTimeline() {
                                             )}
                                         </div>
 
-                                        {index !== timelineEvents.length - 1 && (
-                                            <div className="w-0.5 h-12 bg-gray-200 my-1" />
-                                        )}
+                                        {index !== timelineEvents.length - 1 && <div className="w-0.5 h-12 bg-gray-200 my-1" />}
                                     </div>
 
                                     <div className="pb-4 flex-1">
@@ -377,9 +430,7 @@ export function DeliveryTimeline() {
                         <div>
                             <p className="font-medium text-blue-900">Delivery Instructions</p>
                             <p className="text-sm text-blue-800 mt-1">
-                                {mergedParcel
-                                    ? "Live tracking shows after Assigned (and when agent sends location)."
-                                    : "Select an order to track."}
+                                {mergedParcel ? "Tracking updates every 2 seconds (and live socket if available)." : "Select an order to track."}
                             </p>
                         </div>
                     </div>
@@ -388,3 +439,4 @@ export function DeliveryTimeline() {
         </Card>
     );
 }
+

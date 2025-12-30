@@ -10,17 +10,20 @@ export function ManualLocationTest({ parcelId }) {
 
     const [lat, setLat] = useState(PRESETS.mohammadpur.lat);
     const [lng, setLng] = useState(PRESETS.mohammadpur.lng);
-    const [step, setStep] = useState(0.001); // ~100m-ish per click
+    const [step, setStep] = useState(0.001);
     const [status, setStatus] = useState("");
 
     const socket = useMemo(() => {
         return io(import.meta.env.VITE_SOCKET_URL, {
-            transports: ["websocket"],
+            path: "/socket.io",
+            transports: ["polling", "websocket"],
+            reconnection: true,
+            reconnectionAttempts: 10,
         });
     }, []);
 
     useEffect(() => {
-        // cleanup so you don’t create ghost connections
+
         return () => {
             try {
                 socket.disconnect();
@@ -30,12 +33,12 @@ export function ManualLocationTest({ parcelId }) {
 
     const nLat = Number(lat);
     const nLng = Number(lng);
-    const nStep = Number(step) || 0.001;
+    const nStep = Number(step);
 
     const send = () => {
         setStatus("");
         if (!Number.isFinite(nLat) || !Number.isFinite(nLng)) {
-            setStatus("❌ Invalid lat/lng. Example: 23.7658, 90.3583");
+            setStatus("lat/lng. Example: 23.7658, 90.3583");
             return;
         }
 
@@ -45,7 +48,8 @@ export function ManualLocationTest({ parcelId }) {
             lng: nLng,
         });
 
-        setStatus("✅ Sent location update");
+        setStatus("Sent location update");
+        console.log("Sent agent:location:update", parcelId, { lat: nLat, lng: nLng });
     };
 
     const moveNorth = () => setLat((v) => Number(v) + nStep);
@@ -57,7 +61,7 @@ export function ManualLocationTest({ parcelId }) {
         const p = PRESETS[key];
         setLat(p.lat);
         setLng(p.lng);
-        setStatus(`✅ Loaded preset: ${key}`);
+        setStatus(`Loaded preset: ${key}`);
     };
 
     const openInGoogleMaps = () => {
@@ -69,9 +73,9 @@ export function ManualLocationTest({ parcelId }) {
     const copyCoords = async () => {
         try {
             await navigator.clipboard.writeText(`${nLat}, ${nLng}`);
-            setStatus("✅ Copied: lat, lng");
+            setStatus("Copied: lat, lng");
         } catch {
-            setStatus("❌ Copy failed (browser blocked clipboard).");
+            setStatus("Copy failed (browser blocked clipboard).");
         }
     };
 
