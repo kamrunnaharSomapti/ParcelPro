@@ -34,7 +34,6 @@ export default function RegisterForm() {
                 phone: formData.phone,
                 role: "customer",
             });
-            console.log("response of registration page", res);
 
 
             const token = res.token;

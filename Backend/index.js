@@ -79,7 +79,7 @@ io.on("connection", (socket) => {
                 currentLocation: parcel.currentLocation,
             });
         } catch (e) {
-            console.log("agent:location:update error:", e.message);
+            // console.log("agent:location:update error:", e.message);
         }
     });
 
@@ -105,11 +105,11 @@ io.on("connection", (socket) => {
                 statusHistory: parcel.statusHistory,
             });
         } catch (e) {
-            console.log("agent:status:update error:", e.message);
+            // console.log("agent:status:update error:", e.message);
         }
     });
     socket.on("connect_error", (err) => {
-        console.log("socket connect_error:", err.message);
+        // console.log("socket connect_error:", err.message);
     });
 });
 
@@ -123,9 +123,9 @@ app.use('/api/users', userRoutes);
 // db connection
 const DB = process.env.DB
 mongoose.connect(DB).then(() => {
-    console.log("DB connected")
+    // console.log("DB connected")
 }).catch((err) => {
-    console.log("DB connection error", err)
+    // console.log("DB connection error", err)
 })
 // swagger configuration
 const swaggerOptions = {
@@ -151,11 +151,10 @@ const swaggerOptions = {
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
-console.log(swaggerDocs);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // server
 const PORT = process.env.PORT || 8000
 server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`)
+
 })

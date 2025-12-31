@@ -197,12 +197,9 @@ export function DeliveryTimeline() {
         socketRef.current = socket;
 
         socket.on("connect", () => {
-            console.log("✅ Customer socket connected:", socket.id);
-
             const id = selectedIdRef.current;
             if (id) {
                 socket.emit("parcel:join", { parcelId: id });
-                console.log("✅ joined parcel room:", id);
                 lastJoinedRef.current = id;
             }
         });
@@ -229,7 +226,6 @@ export function DeliveryTimeline() {
                 (payload?.lat != null && payload?.lng != null ? { lat: payload.lat, lng: payload.lng } : null);
 
             if (loc) {
-                console.log("✅ LOCATION EVENT RECEIVED:", payload);
                 setLiveLocation(loc);
             }
         };
@@ -269,15 +265,12 @@ export function DeliveryTimeline() {
         const nextId = selectedParcelId;
         if (!nextId) return;
 
-        console.log("🔄 switching parcel to:", nextId);
-
         if (socket && lastJoinedRef.current && lastJoinedRef.current !== nextId) {
             socket.emit("parcel:leave", { parcelId: lastJoinedRef.current });
         }
 
         if (socket) {
             socket.emit("parcel:join", { parcelId: nextId });
-            console.log("✅ joined parcel room:", nextId);
             lastJoinedRef.current = nextId;
         }
 

@@ -31,7 +31,7 @@ export function RecentOrdersTable({ currentPage, onPageChange }) {
             setRows(res.data?.data || []);
             setMeta((m) => ({ ...m, ...(res.data?.meta || {}), page }));
         } catch (err) {
-            console.error("Recent orders load failed:", err);
+
         } finally {
             setLoading(false);
         }

@@ -38,7 +38,6 @@ export default function DeliveriesTable() {
             const res = await axiosPrivate.get("/parcels/all", {
                 params: { page, limit: meta.limit },
             });
-            console.log(res.data);
 
             setDeliveries(res.data?.data || []);
             setMeta((m) => ({ ...m, ...(res.data?.meta || {}), page }));
@@ -66,7 +65,6 @@ export default function DeliveriesTable() {
     }, []);
 
     const openAssignModal = async (parcel) => {
-        console.log("parcel", parcel);
         setSelectedParcel(parcel);
         setSelectedAgentId("");
         setIsModalOpen(true);
@@ -96,12 +94,12 @@ export default function DeliveriesTable() {
             const assignRes = await axiosPrivate.patch(`/parcels/assign/${selectedParcel._id}`, {
                 agentId: selectedAgentId,
             });
-            console.log("assignRes-------------", assignRes);
+
 
             closeModal();
 
             const fetchParcelsRes = await fetchParcels(meta.page);
-            console.log(fetchParcelsRes); //came undefined why
+
         } catch (err) {
             alert(err?.response?.data?.message || "Failed to assign agent");
             console.error("Assign failed:", err);
